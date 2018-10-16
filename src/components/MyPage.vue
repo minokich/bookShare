@@ -1,11 +1,11 @@
  <template>
-  <div class="hello">
+  <div class="mypage">
     <h1>My Page @ {{ name }}</h1>
     <button @click="goTop">Top</button>
-    <div v-for="(book,id) in myBooks" v-bind:key="id" v-bind:id="id">
-      <p>{{book.title}}</p>
-      <input type='hidden' v-bind:value="id">
-    </div>
+    <ul v-for="book in myBooks" v-bind:key="book.id" v-bind:id="book.id">
+      <li>{{book.title}}</li>
+      <input type='hidden' v-bind:value="book.id">
+    </ul>
     <button @click="pushBook">push</button>
     <button @click="signOut">Sign out</button>
   </div>
@@ -18,28 +18,37 @@ export default {
   name: "MyPage",
   data() {
     return {
-      myBooks: {},
+      myBooks: [],
       name: firebase.auth().currentUser.displayName
     };
   },
   created() {
-    const userKey = firebase.auth().currentUser.uid;
-    var collection = firebase.firestore().collection("books").where("user", "==", userKey)
-
-    collection.onSnapshot(querySnapshot => {
-        console.debug(querySnapshot)
-      //myBooksと取得queryのサイズを比較
-      if (Object.keys(this.myBooks).length > querySnapshot.size) {
-        console.debug("delete検知したから、myBooksを初期化")
-        this.myBooks = {}
-      }
-      //myBooksに全部突っ込む
-      querySnapshot.forEach(doc => {
-        this.$set(this.myBooks, doc.id, doc.data());
-      });
-    });
+    let collection = firebase.firestore().collection("books").where("user", "==", firebase.auth().currentUser.uid).orderBy('createTime')
+    this.setBooks(this.myBooks,collection);
   },
   methods: {
+    setBooks: function(books,collection){
+      collection.onSnapshot(snapshot => {
+        snapshot.docChanges().forEach(change => {
+          //トリガーが 追加 or 更新 (追加には初期実行時が含まれる)
+          if(change.type === "added" || change.type === "modified")this.updateBooks(books,change.doc);
+          if(change.type === "removed")this.removeBooks(books,change.doc.id);
+        });
+      });
+      books.sort();
+    },
+    updateBooks: function(books,doc){
+      console.debug("### updateMyBooks");
+      let obj = doc.data();
+      obj['id'] = doc.id; 
+      books.push(obj);
+    },
+    removeBooks: function(books,id){
+      console.debug("### removeMyBooks");
+      books.forEach(function(item,index, books){
+        if(id === item.id) books.splice(index,1);
+      });
+    },
     goTop: function(){
       console.debug("### goTop");
       this.$router.push("/");
@@ -51,14 +60,16 @@ export default {
         });
     },
     pushBook: function(newBook) {
+
       const authUser = firebase.auth().currentUser;
       const db = firebase.firestore();
       db.settings({ timestampsInSnapshots: true});
 
+      let ranNum = Math.floor(Math.random() * 100);//乱数
       db.collection('books').add({
         user: authUser.uid,
-        title: authUser.displayName+'の本だよ',
-        param1: '',
+        title: authUser.displayName+'の本だよ('+ranNum+')',
+        createTime: new Date(),
         param2: '',
         hoge : {
           moge : 100,
@@ -67,6 +78,7 @@ export default {
       });
     }
   },
+  
 };
 </script>
 

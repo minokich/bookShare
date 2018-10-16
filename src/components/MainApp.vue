@@ -1,12 +1,10 @@
  <template>
   <div class="hello">
-    <h1>Hello {{ name }}!!</h1>
     <h1>{{ msg }}</h1>
     <button @click="goMyPage">MyPage</button>
-    <div v-for="(book,id) in books" v-bind:key="id" v-bind:id="id">
-      <p>{{book.title}}</p>
-      <input type='hidden' v-bind:value="id">
-    </div>
+    <ul v-for="book in books" v-bind:key="book.id" v-bind:id="book.id">
+      <li>{{book.title}}</li>
+    </ul>
 
     <button @click="signOut">Sign out</button>
   </div>
@@ -16,37 +14,47 @@
 import firebase from "firebase";
 
 export default {
-  name: "HelloWorld",
   data() {
     return {
       msg: "Welcome to Book Share App",
-      books: {},
+      books: [],
       name: firebase.auth().currentUser.displayName
     };
   },
   created() {
-    const collection = firebase.firestore().collection("books");
-    collection.onSnapshot(querySnapshot => {
-      //booksと取得queryのサイズを比較
-      if (Object.keys(this.books).length > querySnapshot.size) {
-        console.debug("delete検知のためbooksを初期化")
-        this.books = {}
-      }
-      //booksに全部突っ込む
-      querySnapshot.forEach(doc => {
-        this.$set(this.books, doc.id, doc.data());
-      });
-      console.debug(this.books)
-    });
+    const collection = firebase.firestore().collection("books").orderBy("user").orderBy('createTime');
+    this.setBooks(this.books,collection);
   },
   methods: {
+    setBooks: function(books,collection){
+      collection.onSnapshot(snapshot => {
+        snapshot.docChanges().forEach(change => {
+          //トリガーが 追加 or 更新 (追加には初期実行時が含まれる)
+          if(change.type === "added" || change.type === "modified")this.updateBooks(books,change.doc);
+          if(change.type === "removed")this.removeBooks(books,change.doc.id);
+        });
+      });
+      books.sort();
+    },
+    updateBooks: function(books,doc){
+      console.debug("### updateMyBooks");
+      let obj = doc.data();
+      obj['id'] = doc.id; 
+      books.push(obj);
+    },
+    removeBooks: function(books,id){
+      console.debug("### removeMyBooks");
+      books.forEach(function(item,index, books){
+        if(id === item.id) books.splice(index,1);
+      });
+    },
     goMyPage: function(){
       console.debug("### goMyPage");
       this.$router.push("/mypage");
     },
     signOut: function() {
+      console.debug("### signOut");
       firebase.auth().signOut().then(() => {
-          console.debug("### signOut");
           this.$router.push("/signin");
         });
     },
