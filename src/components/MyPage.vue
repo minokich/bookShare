@@ -1,13 +1,13 @@
  <template>
-  <div class="mypage">
-    <h1>My Page @ {{ name }}</h1>
-    <button @click="goTop">Top</button>
-    <ul v-for="book in myBooks" v-bind:key="book.id" v-bind:id="book.id">
-      <li>{{book.title}}</li>
-      <input type='hidden' v-bind:value="book.id">
-    </ul>
-    <button @click="pushBook">push</button>
-    <button @click="signOut">Sign out</button>
+  <div id="my_page" class="body">
+    <div class="main">
+      <h1>My Page @ {{ name }}</h1>
+      <button @click="pushBook">push</button>
+      <ul v-for="book in myBooks" v-bind:key="book.id" v-bind:id="book.id">
+        <li>{{book.title}}</li>
+        <input type='hidden' v-bind:value="book.id">
+      </ul>
+    </div>
   </div>
 </template>
 

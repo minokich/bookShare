@@ -1,12 +1,11 @@
  <template>
-  <div class="hello">
-    <h1>{{ msg }}</h1>
-    <button @click="goMyPage">MyPage</button>
-    <ul v-for="book in books" v-bind:key="book.id" v-bind:id="book.id">
-      <li>{{book.title}}</li>
-    </ul>
-
-    <button @click="signOut">Sign out</button>
+  <div id="top_page" class="body">
+    <div class="main">
+      <h1>{{ msg }}</h1>
+      <ul v-for="book in books" v-bind:key="book.id" v-bind:id="book.id">
+        <li>{{book.title}}</li><button @click="retalRequest(book.id)" />
+      </ul>
+    </div>
   </div>
 </template>
 
@@ -48,16 +47,9 @@ export default {
         if(id === item.id) books.splice(index,1);
       });
     },
-    goMyPage: function(){
-      console.debug("### goMyPage");
-      this.$router.push("/mypage");
-    },
-    signOut: function() {
-      console.debug("### signOut");
-      firebase.auth().signOut().then(() => {
-          this.$router.push("/signin");
-        });
-    },
+    retalRequest: function(id){
+      alert('意味はないよ！！: ' + id);
+    }
   },
 };
 </script>

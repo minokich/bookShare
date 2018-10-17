@@ -1,13 +1,36 @@
 <template>
   <div id="app">
-    <img　id="top-img" src="./assets/logo.jpg" alt="book-share">
+    <headerItem />
     <router-view/>
+    <footerItem />
   </div>
 </template>
 
 <script>
+import headerItem from './components/Header'
+import footerItem from './components/Footer'
+import firebase from 'firebase'
+
 export default {
-  name: 'App'
+  name: 'App',
+  data() {
+    return {
+      
+    }
+  },
+  components: {
+    headerItem,
+    footerItem,
+  },
+  created: function(){
+    firebase.auth().onAuthStateChanged(token => {
+      if (token) {
+        this.$store.commit('updateState', true);
+      } else {
+        this.$store.commit('updateState', false);
+      }
+    });
+  }
 }
 </script>
 
@@ -20,9 +43,18 @@ export default {
   color: #2c3e50;
   margin-top: 10px;
 }
-
-#top-img {
-  max-height: 300px;
-  max-width: 100%;
+.body{
+  display: flex;
+  justify-content: center;
+  -webkit-justify-content: center;
+  -webkit-align-items: stretch;
+  align-items: stretch;
+  text-align: center;
 }
+.main{
+  width: 100%;
+  max-width: 1226px;
+  border: solid #808000 1px;
+}
+
 </style>
