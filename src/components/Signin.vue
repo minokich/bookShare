@@ -1,12 +1,25 @@
 <template>
     <div class="signin">
-        <h2>Sign in</h2>
-        <button @click="signIn">Google</button>
+    <div>
+      <h1>ようこそ</h1>
+    </div>
+        <button @click="signIn" class="firebaseui-idp-button mdl-button mdl-js-button mdl-button--raised firebaseui-idp-google firebaseui-id-idp-button" >
+          <span class="firebaseui-idp-icon-wrapper">
+            <img class="firebaseui-idp-icon" alt="" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg">
+          </span>
+          <span class="firebaseui-idp-text firebaseui-idp-text-long">
+            Sign in with Google
+          </span>
+          <span class="firebaseui-idp-text firebaseui-idp-text-short">
+            Google
+          </span>
+        </button>
     </div>
 </template>
 
 <script>
 import firebase from "firebase";
+import 'firebaseui/dist/firebaseui.css';
 
 export default {
   name: "Signin",
@@ -23,6 +36,9 @@ export default {
         err => {
           alert(err.message);
         });
+    },
+    moge: function(key){
+      console.debug(key)
     }
   }
 };
