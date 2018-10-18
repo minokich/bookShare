@@ -3,7 +3,8 @@
     <div class="main">
       <h1>{{ msg }}</h1>
       <ul v-for="book in books" v-bind:key="book.id" v-bind:id="book.id">
-        <li>{{book.title}}</li><button @click="retalRequest(book.id)" />
+        <li>{{book.title}}</li>
+        <button @click="retalRequest(book.id,book.title,book.owner)" v-bind:disabled="uid == book.owner">借りたい！</button>
       </ul>
     </div>
   </div>
@@ -17,11 +18,12 @@ export default {
     return {
       msg: "Welcome to Book Share App",
       books: [],
-      name: firebase.auth().currentUser.displayName
+      uid: firebase.auth().currentUser.uid,
+      name: firebase.auth().currentUser.displayName,
     };
   },
   created() {
-    const collection = firebase.firestore().collection("books").orderBy("user").orderBy('createTime');
+    const collection = firebase.firestore().collection("books").orderBy("owner").orderBy('createTime');
     this.setBooks(this.books,collection);
   },
   methods: {
@@ -47,8 +49,25 @@ export default {
         if(id === item.id) books.splice(index,1);
       });
     },
-    retalRequest: function(id){
-      alert('意味はないよ！！: ' + id);
+    retalRequest: function(bookId,title,owner){
+    if(owner === this.uid ){
+      alert('自分の本にレンタルリクエストは送れません。');
+      return;
+    }
+    if(confirm('この本のレンタルリクエストを出しますか？')) {
+      const db = firebase.firestore();
+      db.settings({ timestampsInSnapshots: true});
+      let date = new Date()
+      db.collection('rental').doc(this.uid+'_'+bookId).set({
+        'bookId': bookId,
+        'title': title,
+        'owner': owner,
+        'requestTime': date,
+        'requestUId':this.uid,
+        'requestUName':this.name,
+      });
+      alert('レンタルリクエストを登録しました。')
+    }
     }
   },
 };

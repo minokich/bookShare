@@ -2,7 +2,24 @@
   <div id="my_page" class="body">
     <div class="main">
       <h1>My Page @ {{ name }}</h1>
-      <button @click="pushBook">push</button>
+      <div v-if="requests.length > 0" @click="requestOpen = (requestOpen)?false:true"> 
+        <span style="color:red;">リクエストがあるよ！！！！！</span>
+        <div v-if="requestOpen" v-for="request in this.requests" v-bind:key = "request.key">
+          {{request.title}}:{{request.requestUName}}
+        </div>
+      </div><br>
+      <button id="show-modal" @click="showModal = true">newBook</button>
+      <modalItem v-if="showModal" @close="showModal = false">
+        <h3 slot="header">書籍追加</h3>
+        <div slot="body">
+          タイトル：<input type="text" v-model="newBook.title"><br>
+          作者　　：<input type="text" v-model="newBook.author">
+        </div>
+        <span slot="footer">
+           <button class="modal-default-button" @click="pushBook">push</button>
+        </span>
+      </modalItem>
+
       <ul v-for="book in myBooks" v-bind:key="book.id" v-bind:id="book.id">
         <li>{{book.title}}</li>
         <input type='hidden' v-bind:value="book.id">
@@ -13,20 +30,49 @@
 
 <script>
 import firebase from "firebase";
+import modalItem from "./NewBookModal"
+import { request } from 'http';
 
 export default {
   name: "MyPage",
+  components: {
+    modalItem,
+  },
   data() {
     return {
+      showModal: false,
       myBooks: [],
-      name: firebase.auth().currentUser.displayName
+      name: firebase.auth().currentUser.displayName,
+      uid: firebase.auth().currentUser.uid,
+      newBook: {
+        title : 'noTitle',
+        author: 'noAuthor',
+        tag : [],
+        owner: firebase.auth().currentUser.uid,
+        createTime : null,
+      },
+      requestOpen : false,
+      requests: []
     };
   },
   created() {
-    let collection = firebase.firestore().collection("books").where("user", "==", firebase.auth().currentUser.uid).orderBy('createTime')
+    const db = firebase.firestore();
+    db.collection('rental').where("owner", "==", this.uid).orderBy('requestTime')
+    .get()
+    .then(querySnapshot => {
+      this.setRequests(querySnapshot)
+    })
+    let collection = db.collection("books").where("owner", "==", this.uid).orderBy('createTime')
     this.setBooks(this.myBooks,collection);
   },
   methods: {
+    setRequests: function(querySnapshot){
+      querySnapshot.forEach(doc => {
+       let obj = doc.data();
+       obj['key'] = doc.key;
+       this.requests.push(obj);        
+      });
+    },
     setBooks: function(books,collection){
       collection.onSnapshot(snapshot => {
         snapshot.docChanges().forEach(change => {
@@ -49,33 +95,22 @@ export default {
         if(id === item.id) books.splice(index,1);
       });
     },
-    goTop: function(){
-      console.debug("### goTop");
-      this.$router.push("/");
-    },
-    signOut: function() {
-      firebase.auth().signOut().then(() => {
-          console.debug("### signOut");
-          this.$router.push("/signin");
-        });
-    },
-    pushBook: function(newBook) {
-
+    pushBook: function() {
       const authUser = firebase.auth().currentUser;
       const db = firebase.firestore();
       db.settings({ timestampsInSnapshots: true});
 
-      let ranNum = Math.floor(Math.random() * 100);//乱数
-      db.collection('books').add({
-        user: authUser.uid,
-        title: authUser.displayName+'の本だよ('+ranNum+')',
-        createTime: new Date(),
-        param2: '',
-        hoge : {
-          moge : 100,
-          fuga : true
-        },
-      });
+      this.newBook.createTime = new Date();
+      this.newBook.owner = authUser.uid
+      db.collection('books').add(this.newBook);
+      this.newBook = {
+        title : 'noTitle',
+        author: 'noAuthor',
+        tag : [],
+        owner: 'thisUser',
+        createTime : null,
+      }
+      this.showModal = false;
     }
   },
   

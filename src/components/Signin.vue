@@ -31,6 +31,11 @@ export default {
         .signInWithPopup(providar)
         .then(token => {
           console.debug("### success:[" + token.user.email + "]");
+          firebase.firestore().collection('users').doc(token.user.uid).set({
+            name: token.user.displayName,
+            email: token.user.email,
+            photoURL: token.user.photoURL
+          },{ merge: true });
           this.$router.push('/')
         },
         err => {
