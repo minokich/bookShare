@@ -1,7 +1,7 @@
 <template>
 <div class="header">
     <div id="headder_imgs">
-        <img　id="top_img" src="../assets/logo.jpg" alt="book-share" @click="goTop">
+        <img　id="top_img" src="../assets/logo.jpg" alt="book-share">
     </div>
     <div id="page_tab" v-if="isLogin">
         <button @click="goTop" v-bind:class="{active:isTop}" class="tab_item">Top</button>

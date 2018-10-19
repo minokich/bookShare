@@ -23,6 +23,12 @@ import 'firebaseui/dist/firebaseui.css';
 
 export default {
   name: "Signin",
+  data() {
+    return {
+      input1: '',
+      input2: '',
+    }
+  },
   methods: {
     signIn: function() {
       const providar = new firebase.auth.GoogleAuthProvider();

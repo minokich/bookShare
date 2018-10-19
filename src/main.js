@@ -6,11 +6,16 @@ import router from './router'
 import firebase from 'firebase'
 import Vuex from 'vuex'
 
+import ElementUI from 'element-ui'
+import 'element-ui/lib/theme-chalk/index.css'
+
+Vue.use(ElementUI)
 Vue.use(Vuex)
 Vue.config.productionTip = false
 
 const config = {
-
+//そのままじゃ動かんで
+//YOU の 値を 入れちゃいなYO
 };
 firebase.initializeApp(config);
 

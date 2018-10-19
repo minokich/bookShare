@@ -2,11 +2,26 @@
   <div id="top_page" class="body">
     <div class="main">
       <h1>{{ msg }}</h1>
-      <ul v-for="book in books" v-bind:key="book.id" v-bind:id="book.id">
-        <li>{{book.title}}</li>
-        <button @click="retalRequest(book.id,book.title,book.owner)" v-bind:disabled="uid == book.owner">借りたい！</button>
-      </ul>
+    <div class="list-field">
+      <el-table :data="books" stripe height="700"  :default-sort = "{prop: 'strDate', order: 'descending'}" style="width: 30%">
+        <el-table-column prop="strDate" label="登録日" width="180" sortable />
+        <el-table-column prop="title" label="書籍名" width="180" sortable/>
+        <el-table-column prop="author" label="作者" width="180" sortable/>
+        <el-table-column prop="ownerName" label="持ち主" sortable/>
+        <el-table-column >
+          <template slot-scope="scope">
+            <el-button 
+              size="mini"
+              :disabled="uid == scope.row.owner" 
+              @click="retalRequest(scope.row.id, scope.row.title, scope.row.owner)"
+              round
+            >{{(uid == scope.row.owner)?"あなたの本":"借りたい！"}}
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
     </div>
+    </div>  
   </div>
 </template>
 
@@ -38,9 +53,18 @@ export default {
       books.sort();
     },
     updateBooks: function(books,doc){
+      //タイムスタンプ型 => JS Date型 => String　うーん・・・ゴミ！！！！！
+      const date = doc.data().createTime.toDate();
+      const strDate = [
+        date.getFullYear(),
+        date.getMonth() + 1,
+        date.getDate()
+        ].join( '/' ) + ' '
+        + date.toLocaleTimeString();
       console.debug("### updateMyBooks");
       let obj = doc.data();
       obj['id'] = doc.id; 
+      obj['strDate'] = strDate;
       books.push(obj);
     },
     removeBooks: function(books,id){
@@ -49,25 +73,28 @@ export default {
         if(id === item.id) books.splice(index,1);
       });
     },
+    hoge: function(aaa,bbb){
+      alert(bbb);
+    },
     retalRequest: function(bookId,title,owner){
-    if(owner === this.uid ){
-      alert('自分の本にレンタルリクエストは送れません。');
-      return;
-    }
-    if(confirm('この本のレンタルリクエストを出しますか？')) {
-      const db = firebase.firestore();
-      db.settings({ timestampsInSnapshots: true});
-      let date = new Date()
-      db.collection('rental').doc(this.uid+'_'+bookId).set({
-        'bookId': bookId,
-        'title': title,
-        'owner': owner,
-        'requestTime': date,
-        'requestUId':this.uid,
-        'requestUName':this.name,
-      });
-      alert('レンタルリクエストを登録しました。')
-    }
+      if(owner === this.uid ){
+        alert('自分の本にレンタルリクエストは送れません。');
+        return;
+      }
+      if(confirm('この本のレンタルリクエストを出しますか？')) {
+        const db = firebase.firestore();
+        db.settings({ timestampsInSnapshots: true});
+        let date = new Date()
+        db.collection('rental').doc(this.uid+'_'+bookId).set({
+          'bookId': bookId,
+          'title': title,
+          'owner': owner,
+          'requestTime': date,
+          'requestUId':this.uid,
+          'requestUName':this.name,
+        });
+        alert('レンタルリクエストを登録しました。')
+      }
     }
   },
 };

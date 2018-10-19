@@ -56,6 +56,9 @@ export default {
   max-width: 1226px;
   border: solid #808000 1px;
 }
+.list-field{
+  display:flex;
+}
 .modal-default-button {
   width: 30%;
   float: right;

@@ -2,13 +2,25 @@
   <div id="my_page" class="body">
     <div class="main">
       <h1>My Page @ {{ name }}</h1>
-      <div v-if="requests.length > 0" @click="requestOpen = (requestOpen)?false:true"> 
-        <span style="color:red;">リクエストがあるよ！！！！！</span>
-        <div v-if="requestOpen" v-for="request in this.requests" v-bind:key = "request.key">
-          {{request.title}}:{{request.requestUName}}
-        </div>
-      </div><br>
-      <button id="show-modal" @click="showModal = true">newBook</button>
+      <span v-if="requests.length > 0" style="color:red;">
+        リクエストが{{requests.length}}件あるよ！！！！！
+        <el-button type="primary" @click="requestOpen = (requestOpen)?false:true" size="mini" round>
+          {{(requestOpen)?"閉じる":"確　認"}}
+        </el-button>
+      </span>
+      <div v-if="requests.length > 0"> 
+        <el-table v-if="requestOpen" :data="requests" height="200" max-width="400">
+          <el-table-column prop="requestUName" label="希望者" width="180" sortable />
+          <el-table-column prop="title" label="書籍名" width="180" sortable/>
+        </el-table>
+      </div>
+      <br>
+       <el-button 
+              type="success"
+              @click="showModal = true"
+              round
+            >本の追加
+      </el-button>
       <modalItem v-if="showModal" @close="showModal = false">
         <h3 slot="header">書籍追加</h3>
         <div slot="body">
@@ -20,10 +32,31 @@
         </span>
       </modalItem>
 
-      <ul v-for="book in myBooks" v-bind:key="book.id" v-bind:id="book.id">
-        <li>{{book.title}}</li>
-        <input type='hidden' v-bind:value="book.id">
-      </ul>
+      <div class="list-field">
+      <el-table :data="myBooks" height="700"  :default-sort = "{prop: 'strDate', order: 'descending'}" stripe style="width: 30%">
+        <el-table-column prop="strDate" label="登録日" width="180" sortable />
+        <el-table-column prop="title" label="書籍名" width="180" sortable/>
+        <el-table-column prop="author" label="作者" width="180" sortable/>
+        <el-table-column prop="ownerName" label="持ち主" sortable/>
+        <el-table-column >
+          <template slot-scope="scope">
+            <el-button 
+              size="mini"
+              @click="editBook(scope.row)"
+              round
+            >本の更新
+            </el-button>
+            <el-button 
+              size="mini"
+              type="danger"
+              @click="editBook(scope.row)"
+              round
+            >本の削除
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
     </div>
   </div>
 </template>
@@ -48,8 +81,10 @@ export default {
         title : 'noTitle',
         author: 'noAuthor',
         tag : [],
-        owner: firebase.auth().currentUser.uid,
+        owner: this.uid,
+        ownerName: this.name,
         createTime : null,
+        updateTime: null,
       },
       requestOpen : false,
       requests: []
@@ -84,9 +119,18 @@ export default {
       books.sort();
     },
     updateBooks: function(books,doc){
+      //タイムスタンプ型 => JS Date型 => String　うーん・・・ゴミ！！！！！
+      const date = doc.data().createTime.toDate();
+      const strDate = [
+        date.getFullYear(),
+        date.getMonth() + 1,
+        date.getDate()
+        ].join( '/' ) + ' '
+        + date.toLocaleTimeString();
       console.debug("### updateMyBooks");
       let obj = doc.data();
-      obj['id'] = doc.id; 
+      obj['id'] = doc.id;
+      obj['strDate'] = strDate;
       books.push(obj);
     },
     removeBooks: function(books,id){
@@ -101,17 +145,25 @@ export default {
       db.settings({ timestampsInSnapshots: true});
 
       this.newBook.createTime = new Date();
-      this.newBook.owner = authUser.uid
+      this.newBook.updateTime = new Date();
+      this.newBook.owner = authUser.uid;
+      this.newBook.ownerName = this.name;
       db.collection('books').add(this.newBook);
       this.newBook = {
         title : 'noTitle',
         author: 'noAuthor',
         tag : [],
-        owner: 'thisUser',
+        owner: this.uid,
+        ownerName: this.name,
         createTime : null,
+        updateTime : null,
       }
       this.showModal = false;
-    }
+    },
+    editBook: function(book) {
+      console.debug(book)
+      alert("未実装だよ!ごめんネ！！")
+    },
   },
   
 };
