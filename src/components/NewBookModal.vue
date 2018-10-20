@@ -21,7 +21,6 @@
             <slot name="footer">
               ふったー
             </slot>
-           <button class="modal-default-button" @click="$emit('close')">close</button>
           </div>
         </div>
       </div>

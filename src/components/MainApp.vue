@@ -4,10 +4,25 @@
       <h1>{{ msg }}</h1>
     <div class="list-field">
       <el-table :data="books" stripe height="700"  :default-sort = "{prop: 'strDate', order: 'descending'}" style="width: 30%">
+        <el-table-column label="#">
+          <template slot-scope="scope">
+            {{(scope.row.rentalFlag)?"貸出中":""}}
+          </template>
+        </el-table-column>
         <el-table-column prop="strDate" label="登録日" width="180" sortable />
         <el-table-column prop="title" label="書籍名" width="180" sortable/>
         <el-table-column prop="author" label="作者" width="180" sortable/>
         <el-table-column prop="ownerName" label="持ち主" sortable/>
+        <el-table-column label="タグ">
+            <template slot-scope="scope">
+              <el-tag
+              :key="tag"
+              v-for="tag in scope.row.tags"
+              :disable-transitions="false">
+              {{tag}}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column >
           <template slot-scope="scope">
             <el-button 
@@ -53,16 +68,18 @@ export default {
       books.sort();
     },
     updateBooks: function(books,doc){
+      console.debug("### updateMyBooks");
+      let obj = doc.data();
+      //自分の本はスキップ
+      if(this.uid == obj.owner)return;
       //タイムスタンプ型 => JS Date型 => String　うーん・・・ゴミ！！！！！
-      const date = doc.data().createTime.toDate();
+      const date = obj.createTime.toDate();
       const strDate = [
         date.getFullYear(),
         date.getMonth() + 1,
         date.getDate()
         ].join( '/' ) + ' '
         + date.toLocaleTimeString();
-      console.debug("### updateMyBooks");
-      let obj = doc.data();
       obj['id'] = doc.id; 
       obj['strDate'] = strDate;
       books.push(obj);
