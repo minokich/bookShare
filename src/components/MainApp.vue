@@ -27,7 +27,7 @@
           <template slot-scope="scope">
             <el-button 
               size="mini"
-              :disabled="uid == scope.row.owner" 
+              :disabled="uid == scope.row.owner || scope.row.rentalFlag" 
               @click="retalRequest(scope.row.id, scope.row.title, scope.row.owner)"
               round
             >{{(uid == scope.row.owner)?"あなたの本":"借りたい！"}}
@@ -61,8 +61,8 @@ export default {
       collection.onSnapshot(snapshot => {
         snapshot.docChanges().forEach(change => {
           //トリガーが 追加 or 更新 (追加には初期実行時が含まれる)
-          if(change.type === "added" || change.type === "modified")this.updateBooks(books,change.doc);
-          if(change.type === "removed")this.removeBooks(books,change.doc.id);
+          if (change.type === "removed" || change.type === "modified") this.removeBooks(books, change.doc.id);
+          if (change.type === "added" || change.type === "modified") this.updateBooks(books, change.doc);
         });
       });
       books.sort();

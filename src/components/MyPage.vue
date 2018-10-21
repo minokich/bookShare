@@ -15,8 +15,14 @@
             <el-table-column prop="requestUName" label="希望者" width="180" sortable />
             <el-table-column prop="title" label="書籍名" width="180" sortable/>
             <el-table-column>
-              <template slot-scope="scope" width="40">
-                <el-button size="mini" round>貸すよ！</el-button>
+              <template slot-scope="scope" width="40" >
+                <span v-if="scope.row.rentalStatus == 0">
+                  <el-button size="mini" type="success" round @click="rentalAllow(scope.row, scope.row.bookId)">貸すよ！</el-button>
+                  <el-button size="mini" type="danger" round @click="rentalProhibit(scope.row.rentalId)">ヤダよ！</el-button>
+                </span>
+                <span v-else-if="scope.row.rentalStatus == 1">
+                  貸してるよ！
+                </span>
               </template>
             </el-table-column>
           </el-table>
@@ -70,47 +76,91 @@
         </span>
       </el-dialog>
 
-       <!-- 自分の本 -->
+      <!-- 本の更新 -->
+      <el-dialog
+        title="修正"
+        :visible.sync="showEditModal"
+        width="40%"
+        :before-close="handleClose">
+        <span class="dialog-body">
+          <div>変更情報を入力してください。</div><br>
+          <el-form label-width="120px">
+            <el-form-item label="タイトル">
+              <el-input placeholder="new title" v-model="editBookObj.title" clearable />
+            </el-form-item>
+            <el-form-item label="作者">
+              <el-input placeholder="new author" v-model="editBookObj.author" clearable />
+            </el-form-item>
+          <!-- tesutoko-do -->
+          <el-tag
+            :key="uptag"
+            v-for="uptag in editBookObj.tagsA"
+            closable
+            :disable-transitions="false"
+            @close="tagDelete(uptag)">
+            {{uptag}}
+          </el-tag>
+          <el-autocomplete
+            :fetch-suggestions="querySearch"
+            class="input-new-tag"
+            v-if="tagAddFlag"
+            v-model="tagName"
+            ref="saveTagInput"
+            size="mini"
+            placeholder="例：Vue, Java, 基本情報 など"
+            @keyup.enter.native="tagAdd"
+            @select="tagAdd"
+          >
+        </el-autocomplete>
+        <el-button v-else class="button-new-tag" size="small" @click="newTag">+ New Tag</el-button>
+         </el-form>
+         <label style="font-size:5px"><br>タグの削除をしてもモーダル上に反映されません。<br>データは問題ないですが、頑張って直します。
+         </label>
+        </span>
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="showEditModal = false" size="small">Cancel</el-button>
+          <el-button type="primary" @click="editBook" size="small">Confirm</el-button>
+        </span>
+      </el-dialog>
+
+      <!-- 自分の本 -->
       <div class="list-field">
-      <el-table :data="myBooks" height="700"  :default-sort = "{prop: 'strDate', order: 'descending'}" 
-      stripe style="width: 30%">
-        <el-table-column label="#">
-          <template slot-scope="scope">
-            {{(scope.row.rentalFlag)?"貸出中":""}}
-          </template>
-        </el-table-column>
-        <el-table-column prop="strDate" label="登録日" width="180" sortable />
-        <el-table-column prop="title" label="書籍名" width="180" sortable/>
-        <el-table-column prop="author" label="作者" width="180" sortable/>
-        <el-table-column label="タグ">
+        <el-table :data="myBooks" height="700"  :default-sort = "{prop: 'strDate', order: 'descending'}" 
+        stripe style="width: 30%">
+          <el-table-column prop="strDate" label="登録日" width="180" sortable />
+          <el-table-column prop="title" label="書籍名" min-width="150" sortable/>
+          <el-table-column prop="author" label="作者" width="180" sortable/>
+          <el-table-column prop="rentalUser" label="貸出中" width="100"/>
+          <el-table-column label="タグ">
+              <template slot-scope="scope">
+                <el-tag
+                :key="tag"
+                v-for="tag in scope.row.tags"
+                :disable-transitions="false">
+                {{tag}}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column min-width="100">
             <template slot-scope="scope">
-              <el-tag
-              :key="tag"
-              v-for="tag in scope.row.tags"
-              :disable-transitions="false">
-              {{tag}}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column >
-          <template slot-scope="scope">
-            <el-button 
-              size="mini"
-              @click="editBook(scope.row)"
-              round
-            >本の更新
-            </el-button>
-            <el-button 
-              size="mini"
-              type="danger"
-              @click="deleteBook(scope.row)"
-              round
-            >本の削除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
+              <el-button 
+                size="mini"
+                @click="editOpen(scope.row)"
+                round
+              >本の修正
+              </el-button>
+              <el-button 
+                size="mini"
+                type="danger"
+                @click="deleteBook(scope.row)"
+                round
+              >本の削除
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
     </div>
   </div>
 </template>
@@ -125,6 +175,8 @@ export default {
       myBooks: [],
       name: firebase.auth().currentUser.displayName,
       uid: firebase.auth().currentUser.uid,
+      requestOpen: false,
+      requests: [],
       newBook: {
         title: null,
         author: null,
@@ -133,10 +185,12 @@ export default {
         ownerName: this.name,
         createTime: null,
         updateTime: null,
+        rentalUser: "",
         rentalFlag: false,
       },
-      requestOpen: false,
-      requests: [],
+      showNewBookModal: false,
+      editBookObj: {},
+      showEditModal : false,
       sampleTags: [
         {"value":"Vue"},
         {"value":"Java"},
@@ -147,7 +201,6 @@ export default {
         {"value":"JavaScript"},
         {"value":"TypeScript"},
       ],
-      showNewBookModal: false,
       tagAddFlag: false,
       tagName: ""
     };
@@ -171,7 +224,7 @@ export default {
     setRequests: function(querySnapshot) {
       querySnapshot.forEach(doc => {
         let obj = doc.data();
-        obj["key"] = doc.key;
+        obj["rentalId"] = doc.id;
         this.requests.push(obj);
       });
     },
@@ -179,9 +232,8 @@ export default {
       collection.onSnapshot(snapshot => {
         snapshot.docChanges().forEach(change => {
           //トリガーが 追加 or 更新 (追加には初期実行時が含まれる)
-          if (change.type === "added" || change.type === "modified")
-            this.updateBooks(books, change.doc);
-          if (change.type === "removed") this.removeBooks(books, change.doc.id);
+          if (change.type === "removed" || change.type === "modified") this.removeBooks(books, change.doc.id);
+          if (change.type === "added" || change.type === "modified") this.updateBooks(books, change.doc);
         });
       });
       books.sort();
@@ -227,13 +279,27 @@ export default {
         ownerName: this.name,
         createTime: null,
         updateTime: null,
+        rentalUser: "",
         rentalFlag: false
       };
       this.showNewBookModal = false;
     },
-    editBook: function(book) {
-      console.debug(book);
-      alert("未実装だよ!ごめんネ！！");
+    //修正反映
+    editBook: function() {
+      if(!confirm('本当に修正しても良いですか？'))return;
+      const db = firebase.firestore();
+      const id = this.editBookObj.id;
+      delete this.editBookObj["id"]
+      db.collection("books").doc(id).set(this.editBookObj)
+
+      this.showEditModal = false;
+    },
+    //修正モーダルを開く
+    editOpen: function(book){
+      Object.assign(this.editBookObj, book);
+      //タグの配列をconcatでこぴーしたもので上書き => そのままだと参照がこぴーされているっぽい
+      this.editBookObj["tags"] = book["tags"].concat();
+      this.showEditModal = true;
     },
     //本の削除
     deleteBook: function(book) {
@@ -251,7 +317,8 @@ export default {
     },
     //タグの削除
     tagDelete: function(tag) {
-      this.newBook.tags.splice(this.newBook.tags.indexOf(tag), 1);
+      if(this.showNewBookModal) this.newBook.tags.splice(this.newBook.tags.indexOf(tag), 1);
+      if(this.showEditModal) this.editBookObj.tags.splice(this.editBookObj.tags.indexOf(tag), 1);
     },
     //タグ追加ボタン押下
     newTag: function() {
@@ -262,31 +329,59 @@ export default {
     },
     //タグついか
     tagAdd: function(item) {
+      console.debug(item);
       let tagName = (item.value) ? item.value : this.tagName;
       //sample選択時はitemの値を使う
-      if(this.newBook.tags.indexOf(tagName) >= 0){
+      let tags = (this.showNewBookModal) ? this.newBook.tags : this.editBookObj.tags;
+      if(tags.indexOf(tagName) >= 0){
         alert("重複はダメです")
-      }
-      else if(this.newBook.tags.length > 4){
+      }else if(tags.length > 4){
         alert("４つまでにしてください")
-      }else{
-        if (tagName) this.newBook.tags.push(tagName);
+      }else if(tagName){
+        tags.push(tagName);
       }
       this.tagAddFlag = false;
       this.tagName = "";
     },
     //タグの入力保管データ作成
-    querySearch(queryString, cb) {
+    querySearch: function(queryString, cb) {
         var sampleTags = this.sampleTags;
         var results = queryString ? sampleTags.filter(this.createFilter(queryString)) : sampleTags;
         // call callback function to return suggestions
         cb(results);
     },
     //タグの入力保管データを入力でフィルタリング
-    createFilter(queryString) {
+    createFilter: function(queryString) {
        return (sampleTag) => {
         return (sampleTag.value.toLowerCase().indexOf(queryString.toLowerCase()) === 0);
        };
+    },
+    //レンタル許可
+    rentalAllow: function(request,bookId){
+      if(!confirm('貸し出してもいいですか？'))return;
+      const db = firebase.firestore();
+      db.collection("books").doc(bookId).update(
+        {
+          "rentalFlag":true,
+          "rentalUser":request.requestUName,
+        }
+      );
+      //パラメータ設定のみ
+      db.collection('rental').doc(request.rentalId).update(
+        {
+          "rentalStatus": 1
+        }
+      );
+    },
+    //レンタル拒否
+    rentalProhibit: function(rentalId){
+      if(!confirm('本当に拒否しますか？'))return;
+      const db = firebase.firestore();
+      db.collection('rental').doc(rentalId).delete();
+      //一覧から消す
+      this.requests.forEach(function(item, index, requests) {
+        if (rentalId === item.rentalId) requests.splice(index, 1);
+      });
     },
   }
 };
