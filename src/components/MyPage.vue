@@ -25,16 +25,21 @@
       </div>
 
       <!-- 本追加 -->
-      <el-button type="success" @click="showModal = true" >本の追加 </el-button>
+      <el-button type="success" @click="showNewBookModal = true" >本の追加 </el-button>
       <el-dialog
-        title="Tips"
-        :visible.sync="showModal"
+        title="追加"
+        :visible.sync="showNewBookModal"
         width="40%"
         :before-close="handleClose">
         <span class="dialog-body">
-          <span>情報入れろ</span>
-          <el-input placeholder="new title" size="mini" v-model="newBook.title" clearable />
-          <el-input placeholder="new author" size="mini" v-model="newBook.author" clearable />
+          <div>入力してください</div><br>
+          <el-form label-width="120px">
+            <el-form-item label="タイトル">
+              <el-input placeholder="new title" v-model="newBook.title" clearable />
+            </el-form-item>
+            <el-form-item label="作者">
+              <el-input placeholder="new author" v-model="newBook.author" clearable />
+            </el-form-item>
           <!-- tesutoko-do -->
           <el-tag
             :key="tag"
@@ -44,21 +49,24 @@
             @close="tagDelete(tag)">
             {{tag}}
           </el-tag>
-          <el-input
+          <el-autocomplete
+            :fetch-suggestions="querySearch"
             class="input-new-tag"
             v-if="tagAddFlag"
             v-model="tagName"
             ref="saveTagInput"
             size="mini"
+            placeholder="例：Vue, Java, 基本情報 など"
             @keyup.enter.native="tagAdd"
-            @blur="tagAdd"
+            @select="tagAdd"
           >
-        </el-input>
+        </el-autocomplete>
         <el-button v-else class="button-new-tag" size="small" @click="newTag">+ New Tag</el-button>
+         </el-form>
         </span>
         <span slot="footer" class="dialog-footer">
-          <el-button @click="showModal = false">Cancel</el-button>
-          <el-button type="primary" @click="pushBook">Confirm</el-button>
+          <el-button @click="showNewBookModal = false" size="small">Cancel</el-button>
+          <el-button type="primary" @click="pushBook" size="small">Confirm</el-button>
         </span>
       </el-dialog>
 
@@ -112,12 +120,8 @@ import firebase from "firebase";
 
 export default {
   name: "MyPage",
-  components: {
-   
-  },
   data() {
     return {
-      showModal: false,
       myBooks: [],
       name: firebase.auth().currentUser.displayName,
       uid: firebase.auth().currentUser.uid,
@@ -133,6 +137,17 @@ export default {
       },
       requestOpen: false,
       requests: [],
+      sampleTags: [
+        {"value":"Vue"},
+        {"value":"Java"},
+        {"value":"Python"},
+        {"value":"基本情報"},
+        {"value":"応用情報"},
+        {"value":"Ruby"},
+        {"value":"JavaScript"},
+        {"value":"TypeScript"},
+      ],
+      showNewBookModal: false,
       tagAddFlag: false,
       tagName: ""
     };
@@ -214,17 +229,19 @@ export default {
         updateTime: null,
         rentalFlag: false
       };
-      this.showModal = false;
+      this.showNewBookModal = false;
     },
     editBook: function(book) {
       console.debug(book);
       alert("未実装だよ!ごめんネ！！");
     },
+    //本の削除
     deleteBook: function(book) {
       if(!confirm('本当に削除しても良いですか？'))return;
       const db = firebase.firestore();
       db.collection("books").doc(book.id).delete();
     },
+    //モーダル閉じる
     handleClose: function(done) {
       this.$confirm("現在の入力が保存されていませんが、閉じても良いですか？")
         .then(_ => {
@@ -232,23 +249,45 @@ export default {
         })
         .catch(_ => {});
     },
+    //タグの削除
     tagDelete: function(tag) {
-      this.dynamicTags.splice(this.newBook.tags.indexOf(tag), 1);
+      this.newBook.tags.splice(this.newBook.tags.indexOf(tag), 1);
     },
+    //タグ追加ボタン押下
     newTag: function() {
       this.tagAddFlag = true;
       this.$nextTick(_ => {
         this.$refs.saveTagInput.$refs.input.focus();
       });
     },
-    tagAdd: function() {
-      let tagName = this.tagName;
-      if (tagName) {
-        this.newBook.tags.push(tagName);
+    //タグついか
+    tagAdd: function(item) {
+      let tagName = (item.value) ? item.value : this.tagName;
+      //sample選択時はitemの値を使う
+      if(this.newBook.tags.indexOf(tagName) >= 0){
+        alert("重複はダメです")
+      }
+      else if(this.newBook.tags.length > 4){
+        alert("４つまでにしてください")
+      }else{
+        if (tagName) this.newBook.tags.push(tagName);
       }
       this.tagAddFlag = false;
       this.tagName = "";
-    }
+    },
+    //タグの入力保管データ作成
+    querySearch(queryString, cb) {
+        var sampleTags = this.sampleTags;
+        var results = queryString ? sampleTags.filter(this.createFilter(queryString)) : sampleTags;
+        // call callback function to return suggestions
+        cb(results);
+    },
+    //タグの入力保管データを入力でフィルタリング
+    createFilter(queryString) {
+       return (sampleTag) => {
+        return (sampleTag.value.toLowerCase().indexOf(queryString.toLowerCase()) === 0);
+       };
+    },
   }
 };
 </script>
@@ -270,9 +309,13 @@ li {
 a {
   color: #42b983;
 }
-
 #request-table-field {
   width: 50%;
+  text-align: center;
+  margin: 0 auto;
+}
+
+.centar {
   text-align: center;
   margin: 0 auto;
 }
