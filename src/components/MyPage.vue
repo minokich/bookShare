@@ -3,19 +3,26 @@
     <div class="main">
       <h1>My Page @ {{ name }}</h1>
       <!-- 貸出リクエスト -->
-      <span v-if="requests.length > 0" style="color:red;">
-        リクエストが{{requests.length}}件あるよ！！！！！
-        <el-button type="primary" @click="requestOpen = (requestOpen)?false:true" size="mini" round>
-          {{(requestOpen)?"閉じる":"確　認"}}
-        </el-button>
-      </span>
-      <div v-if="requests.length > 0"> 
-        <el-table v-if="requestOpen" :data="requests" height="200" max-width="400">
-          <el-table-column prop="requestUName" label="希望者" width="180" sortable />
-          <el-table-column prop="title" label="書籍名" width="180" sortable/>
-        </el-table>
+      <div id="requests-field">
+       <span v-if="requests.length > 0" style="color:red;">
+          リクエストが{{requests.length}}件あるよ！！！！！
+          <el-button type="primary" @click="requestOpen = (requestOpen)?false:true" size="mini" round>
+            {{(requestOpen)?"閉じる":"確　認"}}
+          </el-button>
+        </span>
+        <div id="request-table-field" v-if="requests.length > 0"> 
+          <el-table v-if="requestOpen" :data="requests" height="200">
+            <el-table-column prop="requestUName" label="希望者" width="180" sortable />
+            <el-table-column prop="title" label="書籍名" width="180" sortable/>
+            <el-table-column>
+              <template slot-scope="scope" width="40">
+                <el-button size="mini" round>貸すよ！</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+        <br>
       </div>
-      <br>
 
       <!-- 本追加 -->
       <el-button type="success" @click="showModal = true" >本の追加 </el-button>
@@ -88,7 +95,7 @@
             <el-button 
               size="mini"
               type="danger"
-              @click="editBook(scope.row)"
+              @click="deleteBook(scope.row)"
               round
             >本の削除
             </el-button>
@@ -102,13 +109,11 @@
 
 <script>
 import firebase from "firebase";
-import modalItem from "./NewBookModal";
-import { request } from "http";
 
 export default {
   name: "MyPage",
   components: {
-    modalItem
+   
   },
   data() {
     return {
@@ -117,8 +122,8 @@ export default {
       name: firebase.auth().currentUser.displayName,
       uid: firebase.auth().currentUser.uid,
       newBook: {
-        title: "",
-        author: "",
+        title: null,
+        author: null,
         tags: [],
         owner: this.uid,
         ownerName: this.name,
@@ -186,6 +191,10 @@ export default {
       });
     },
     pushBook: function() {
+      if(!(this.newBook.title) || !(this.newBook.author)){
+        alert("タイトルと作者両方を未入力で本の作成はできません。")
+        return
+      };
       const authUser = firebase.auth().currentUser;
       const db = firebase.firestore();
       db.settings({ timestampsInSnapshots: true });
@@ -196,8 +205,8 @@ export default {
       this.newBook.ownerName = this.name;
       db.collection("books").add(this.newBook);
       this.newBook = {
-        title: "",
-        author: "",
+        title: null,
+        author: null,
         tags: [],
         owner: this.uid,
         ownerName: this.name,
@@ -210,6 +219,11 @@ export default {
     editBook: function(book) {
       console.debug(book);
       alert("未実装だよ!ごめんネ！！");
+    },
+    deleteBook: function(book) {
+      if(!confirm('本当に削除しても良いですか？'))return;
+      const db = firebase.firestore();
+      db.collection("books").doc(book.id).delete();
     },
     handleClose: function(done) {
       this.$confirm("現在の入力が保存されていませんが、閉じても良いですか？")
@@ -255,5 +269,11 @@ li {
 }
 a {
   color: #42b983;
+}
+
+#request-table-field {
+  width: 50%;
+  text-align: center;
+  margin: 0 auto;
 }
 </style>
