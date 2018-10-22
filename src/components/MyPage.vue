@@ -2,36 +2,76 @@
   <div id="my_page" class="body">
     <div class="main">
       <h1>My Page @ {{ name }}</h1>
-      <!-- 貸出リクエスト -->
-      <div id="requests-field">
-       <span v-if="requests.length > 0" style="color:red;">
-          リクエストが{{requests.length}}件あるよ！！！！！
-          <el-button type="primary" @click="requestOpen = (requestOpen)?false:true" size="mini" round>
-            {{(requestOpen)?"閉じる":"確　認"}}
+      <!-- 受けた貸出リクエスト -->
+      <span id="requests-field">
+       <span v-if="requests.length > 0" >
+         <el-badge :value="requests.length">
+          <el-button type="danger" @click="requestOpen = (requestOpen)?false:true" size="mini" icon="el-icon-message" round>
+            {{(requestOpen)?"閉じる":"受けたリクエスト"}}
           </el-button>
+         </el-badge>
         </span>
         <div id="request-table-field" v-if="requests.length > 0"> 
-          <el-table v-if="requestOpen" :data="requests" height="200">
+          <el-table v-if="requestOpen" :data="requests" height="150">
             <el-table-column prop="requestUName" label="希望者" width="180" sortable />
-            <el-table-column prop="title" label="書籍名" width="180" sortable/>
+            <el-table-column prop="title" label="書籍名" width="200" sortable/>
             <el-table-column>
               <template slot-scope="scope" width="40" >
                 <span v-if="scope.row.rentalStatus == 0">
                   <el-button size="mini" type="success" round @click="rentalAllow(scope.row, scope.row.bookId)">貸すよ！</el-button>
-                  <el-button size="mini" type="danger" round @click="rentalProhibit(scope.row.rentalId)">ヤダよ！</el-button>
+                  <br><el-button size="mini" type="danger" round @click="rentalProhibit(scope.row.rentalId)">ヤダよ！</el-button>
                 </span>
-                <span v-else-if="scope.row.rentalStatus == 1">
-                  貸してるよ！
+                <span v-else-if="scope.row.rentalStatus == 1 || scope.row.rentalStatus == 2">
+                  {{(scope.row.rentalStatus == 1)?"渡さなきゃ！":"貸してるよ！"}}
+                  <el-button size="mini" type="warning" round @click="myBookReturned(scope.row, scope.row.bookId)"> {{(scope.row.rentalStatus == 1)?"やっぱやめた":"返してもらった"}}</el-button>
                 </span>
               </template>
             </el-table-column>
           </el-table>
         </div>
         <br>
-      </div>
+      </span>
+
+      <!-- 自分の出した貸出リクエスト -->
+      <span id="requests-field">
+       <span v-if="myRequests.length > 0">
+          <el-button type="primary" @click="myRequestOpen = (myRequestOpen)?false:true" size="mini" icon="el-icon-message" round>
+            {{(myRequestOpen)?"閉じる":"自分のリクエスト"}}
+          </el-button>
+        </span>
+        <div id="request-table-field" v-if="requests.length > 0"> 
+          <el-table v-if="myRequestOpen" :data="myRequests" height="150">
+            <el-table-column prop="requestUName" label="希望者" width="180" sortable />
+            <el-table-column prop="title" label="書籍名" width="180" sortable/>
+            <el-table-column>
+              <template slot-scope="scope" width="80" >
+                <span v-if="scope.row.rentalStatus == 0">
+                  許可待ち！<br>
+                </span>
+                <span v-else-if="scope.row.rentalStatus == 1">
+                  許可もらったよ！<br>
+                  <el-button size="mini" @click="rentalBookRceive(scope.row.rentalId)">受け取った！</el-button>
+                </span>
+                <span v-else-if="scope.row.rentalStatus == 2">
+                  借りてるよ<br>
+                  <el-button size="mini" @click="rentalBookReturn(scope.row.rentalId)">返した！</el-button>
+                </span>
+                <span v-else-if="scope.row.rentalStatus == 3">
+                  返したよ
+                </span>
+                <span v-else>
+                  これが見えているのはおかしいよ？？？？？？？
+                </span>
+                <el-button size="mini" type="danger"  icon="el-icon-delete" @click="myRentalRequestDelete(scope.row.rentalId)" circle />
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+        <br>
+      </span>
 
       <!-- 本追加 -->
-      <el-button type="success" @click="showNewBookModal = true" >本の追加 </el-button>
+      <el-button type="success" @click="pushOpen" >本の追加 </el-button>
       <el-dialog
         title="追加"
         :visible.sync="showNewBookModal"
@@ -94,7 +134,7 @@
           <!-- tesutoko-do -->
           <el-tag
             :key="uptag"
-            v-for="uptag in editBookObj.tagsA"
+            v-for="uptag in editBookObj.tags"
             closable
             :disable-transitions="false"
             @close="tagDelete(uptag)">
@@ -177,6 +217,8 @@ export default {
       uid: firebase.auth().currentUser.uid,
       requestOpen: false,
       requests: [],
+      myRequestOpen: false,
+      myRequests:[],
       newBook: {
         title: null,
         author: null,
@@ -212,7 +254,14 @@ export default {
       .orderBy("requestTime")
       .get()
       .then(querySnapshot => {
-        this.setRequests(querySnapshot);
+        this.setRequests(querySnapshot, this.requests);
+      });
+      db.collection("rental")
+      .where("requestUId", "==", this.uid)
+      .orderBy("requestTime")
+      .get()
+      .then(querySnapshot => {
+        this.setRequests(querySnapshot, this.myRequests);
       });
     let collection = db
       .collection("books")
@@ -221,11 +270,11 @@ export default {
     this.setBooks(this.myBooks, collection);
   },
   methods: {
-    setRequests: function(querySnapshot) {
+    setRequests: function(querySnapshot,requests) {
       querySnapshot.forEach(doc => {
         let obj = doc.data();
         obj["rentalId"] = doc.id;
-        this.requests.push(obj);
+        requests.push(obj);
       });
     },
     setBooks: function(books, collection) {
@@ -256,6 +305,21 @@ export default {
       books.forEach(function(item, index, books) {
         if (id === item.id) books.splice(index, 1);
       });
+    },
+    pushOpen: function(){
+        this.newBook = {
+        title: null,
+        author: null,
+        tags: [],
+        owner: this.uid,
+        ownerName: this.name,
+        createTime: null,
+        updateTime: null,
+        rentalUser: "",
+        rentalFlag: false
+      };
+      this.tagAddFlag = false;
+      this.showNewBookModal = true;
     },
     pushBook: function() {
       if(!(this.newBook.title) || !(this.newBook.author)){
@@ -296,9 +360,10 @@ export default {
     },
     //修正モーダルを開く
     editOpen: function(book){
+      this.tagAddFlag = false;
       Object.assign(this.editBookObj, book);
       //タグの配列をconcatでこぴーしたもので上書き => そのままだと参照がこぴーされているっぽい
-      this.editBookObj["tags"] = book["tags"].concat();
+      //this.editBookObj["tags"] = book["tags"].concat();
       this.showEditModal = true;
     },
     //本の削除
@@ -371,6 +436,8 @@ export default {
         {
           "rentalStatus": 1
         }
+      ).then(
+        request.rentalStatus = 1
       );
     },
     //レンタル拒否
@@ -382,7 +449,34 @@ export default {
       this.requests.forEach(function(item, index, requests) {
         if (rentalId === item.rentalId) requests.splice(index, 1);
       });
+      if(this.requests.length <= 0)this.requests = false;
     },
+    //本名を返してもらった
+    myBookReturned: function(request,bookId){
+      this.hoge()
+    },
+    //本を受け取った
+    rentalBookRceive: function(rentalId){
+      this.hoge();
+    },
+    //本を返した
+    rentalBookReturn: function(rentalId){
+      this.hoge();
+    },
+    myRentalRequestDelete: function(rentalId){
+      let message = 'リクエストをを削除します。必ず書籍を返却してから実行してください。';
+      if(!window.confirm(message))return;
+      const db = firebase.firestore();
+      db.collection('rental').doc(rentalId).delete();
+      //一覧から消す
+      this.myRequests.forEach(function(item, index, myRequests) {
+        if (rentalId === item.rentalId) myRequests.splice(index, 1);
+      });
+      if(myRequests.length <= 0)this.myRequestOpen = false;
+    },
+    hoge: function(){
+      alert("ゴメンね！まだ未実装だよ！！");
+    }
   }
 };
 </script>

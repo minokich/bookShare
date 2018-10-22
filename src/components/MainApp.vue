@@ -90,9 +90,6 @@ export default {
         if(id === item.id) books.splice(index,1);
       });
     },
-    hoge: function(aaa,bbb){
-      alert(bbb);
-    },
     retalRequest: function(bookId,title,owner){
       if(owner === this.uid ){
         alert('自分の本にレンタルリクエストは送れません。');
@@ -109,6 +106,7 @@ export default {
           'requestTime': date,
           'requestUId':this.uid,
           'requestUName':this.name,
+          'rentalStatus': 0,
         });
         alert('レンタルリクエストを登録しました。')
       }
