@@ -23,7 +23,10 @@
                 </span>
                 <span v-else-if="scope.row.rentalStatus == 1 || scope.row.rentalStatus == 2">
                   {{(scope.row.rentalStatus == 1)?"渡さなきゃ！":"貸してるよ！"}}
-                  <el-button size="mini" type="warning" round @click="myBookReturned(scope.row, scope.row.bookId)"> {{(scope.row.rentalStatus == 1)?"やっぱやめた":"返してもらった"}}</el-button>
+                  <el-button v-if="scope.row.rentalStatus == 1" size="mini" type="warning" round @click="rentalProhibit(scope.row.rentalId)"> やっぱやめた</el-button>
+                </span>
+                <span v-else-if="scope.row.rentalStatus == 3">
+                  <el-button size="mini" type="warning" round @click="myBookReturned(scope.row, scope.row.bookId)"> 返してもらった</el-button>
                 </span>
               </template>
             </el-table-column>
@@ -39,7 +42,7 @@
             {{(myRequestOpen)?"閉じる":"自分のリクエスト"}}
           </el-button>
         </span>
-        <div id="request-table-field" v-if="requests.length > 0"> 
+        <div id="request-table-field" v-if="myRequests.length > 0"> 
           <el-table v-if="myRequestOpen" :data="myRequests" height="150">
             <el-table-column prop="requestUName" label="希望者" width="180" sortable />
             <el-table-column prop="title" label="書籍名" width="180" sortable/>
@@ -47,6 +50,7 @@
               <template slot-scope="scope" width="80" >
                 <span v-if="scope.row.rentalStatus == 0">
                   許可待ち！<br>
+                  <el-button size="mini" type="danger" @click="myRentalRequestDelete(scope.row.rentalId)">キャンセル</el-button>
                 </span>
                 <span v-else-if="scope.row.rentalStatus == 1">
                   許可もらったよ！<br>
@@ -60,9 +64,9 @@
                   返したよ
                 </span>
                 <span v-else>
-                  これが見えているのはおかしいよ？？？？？？？
+                  拒否されました。
+                  <el-button size="mini" type="danger" @click="myRentalRequestDelete(scope.row.rentalId)">削除</el-button>
                 </span>
-                <el-button size="mini" type="danger"  icon="el-icon-delete" @click="myRentalRequestDelete(scope.row.rentalId)" circle />
               </template>
             </el-table-column>
           </el-table>
@@ -249,20 +253,8 @@ export default {
   },
   created() {
     const db = firebase.firestore();
-    db.collection("rental")
-      .where("owner", "==", this.uid)
-      .orderBy("requestTime")
-      .get()
-      .then(querySnapshot => {
-        this.setRequests(querySnapshot, this.requests);
-      });
-      db.collection("rental")
-      .where("requestUId", "==", this.uid)
-      .orderBy("requestTime")
-      .get()
-      .then(querySnapshot => {
-        this.setRequests(querySnapshot, this.myRequests);
-      });
+    this.getMyRequest(db)
+    this.getHaveRequest(db)
     let collection = db
       .collection("books")
       .where("owner", "==", this.uid)
@@ -270,7 +262,29 @@ export default {
     this.setBooks(this.myBooks, collection);
   },
   methods: {
+    getHaveRequest: function(db) {
+      db.collection("rental")
+      .where("owner", "==", this.uid)
+      .where("rentalStatus",'<=',10)
+      .get()
+      .then(querySnapshot => {
+        this.setRequests(querySnapshot, this.requests);
+      });
+    },
+    getMyRequest: function(db){
+      db.collection("rental")
+      .where("requestUId", "==", this.uid)
+      .orderBy("requestTime")
+      .get()
+      .then(querySnapshot => {
+        this.setRequests(querySnapshot, this.myRequests);
+      });
+    },
     setRequests: function(querySnapshot,requests) {
+      //初期化
+      requests.forEach(function(item, index, requests) {
+          requests.splice(index, 1);
+      });
       querySnapshot.forEach(doc => {
         let obj = doc.data();
         obj["rentalId"] = doc.id;
@@ -439,30 +453,47 @@ export default {
       ).then(
         request.rentalStatus = 1
       );
+      this.getHaveRequest(db)
     },
     //レンタル拒否
     rentalProhibit: function(rentalId){
       if(!confirm('本当に拒否しますか？'))return;
       const db = firebase.firestore();
-      db.collection('rental').doc(rentalId).delete();
+            //パラメータ設定のみ
+      db.collection('rental').doc(rentalId).update({"rentalStatus": 99}
+      );
       //一覧から消す
       this.requests.forEach(function(item, index, requests) {
         if (rentalId === item.rentalId) requests.splice(index, 1);
       });
+      this.getHaveRequest(db)
       if(this.requests.length <= 0)this.requests = false;
     },
-    //本名を返してもらった
+    //本を返してもらった
     myBookReturned: function(request,bookId){
-      this.hoge()
+      const db = firebase.firestore();
+      db.collection('rental').doc(request.rentalId).delete();
+      db.collection('books').doc(bookId).update(
+        {
+          "rentalFlag":falese,
+          "rentalUser":"",
+        }
+      );
+      this.getHaveRequest(db)
     },
     //本を受け取った
     rentalBookRceive: function(rentalId){
-      this.hoge();
+      const db = firebase.firestore();
+      db.collection('rental').doc(rentalId).update({"rentalStatus": 2})
+      this.getMyRequest(db)
     },
     //本を返した
     rentalBookReturn: function(rentalId){
-      this.hoge();
+      const db = firebase.firestore();
+      db.collection('rental').doc(rentalId).update({"rentalStatus": 3})
+      this.getMyRequest(db)
     },
+    //リクエストの削除
     myRentalRequestDelete: function(rentalId){
       let message = 'リクエストをを削除します。必ず書籍を返却してから実行してください。';
       if(!window.confirm(message))return;
@@ -472,6 +503,7 @@ export default {
       this.myRequests.forEach(function(item, index, myRequests) {
         if (rentalId === item.rentalId) myRequests.splice(index, 1);
       });
+      this.getMyRequest(db)
       if(myRequests.length <= 0)this.myRequestOpen = false;
     },
     hoge: function(){
